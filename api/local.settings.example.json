@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+
+    "STELLAR_NETWORK": "TESTNET",
+    "HORIZON_URL": "https://horizon-testnet.stellar.org",
+
+    "DOMAIN_EXPIRATION": "3600",
+    "REGISTRAR_ACCOUNT": "<registrar_account_id>",
+    "SIGNER_SECRET_KEY": "<registrar_secret_key>"
+  }
+}
