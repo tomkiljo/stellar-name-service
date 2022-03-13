@@ -8,7 +8,7 @@ import {
   Transaction,
   TransactionBuilder,
 } from "stellar-sdk";
-import { DomainResult, contractRegister } from "./api";
+import { DomainResult, contractRegister, contractSubregister } from "./api";
 
 const STELLAR_NETWORK = "TESTNET";
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
@@ -34,6 +34,39 @@ export const registerDomain = async (
   if (innerTransaction.memo.value?.toString() !== "domain_renew") {
     innerTransaction.sign(signer);
   }
+
+  const transaction = TransactionBuilder.buildFeeBumpTransaction(
+    signer,
+    BASE_FEE,
+    innerTransaction,
+    Networks[STELLAR_NETWORK]
+  );
+
+  transaction.sign(signer);
+
+  console.log(transaction.toXDR());
+  await server.submitTransaction(transaction);
+};
+
+export const registerSubdomain = async (
+  domain: DomainResult,
+  label: string,
+  signer: Keypair
+): Promise<void> => {
+  const contractResult = await contractSubregister(
+    domain.domain,
+    label,
+    signer.publicKey()
+  );
+
+  const innerTransaction = new Transaction(
+    contractResult.xdr,
+    Networks[STELLAR_NETWORK]
+  );
+
+  console.log(innerTransaction.memo.value?.toString());
+
+  innerTransaction.sign(signer);
 
   const transaction = TransactionBuilder.buildFeeBumpTransaction(
     signer,

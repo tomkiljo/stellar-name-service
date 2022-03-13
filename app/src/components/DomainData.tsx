@@ -1,11 +1,13 @@
 import {
   Button,
   Chip,
+  Divider,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 import React, {
   FC,
   ReactElement,
@@ -16,6 +18,7 @@ import React, {
 import { DomainResult } from "../services/api";
 import ModifyDialog from "./ModifyDialog";
 import RegisterDialog from "./RegisterDialog";
+import SubregisterDialog from "./SubregisterDialog";
 
 export interface DomainDataEntry {
   name: string;
@@ -51,6 +54,7 @@ type DomainDataProps = {
 const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [subregisterDialogOpen, setSubregisterDialogOpen] = useState(false);
   const [mutableDomain, setMutableDomain] = useState<DomainResult>();
 
   useEffect(() => {
@@ -68,6 +72,11 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
     if (reload) onReload();
   };
 
+  const handleSubregisterDialogClose = (reload: boolean): void => {
+    setSubregisterDialogOpen(false);
+    if (reload) onReload();
+  };
+
   const handleModifyDialogClose = (reload: boolean): void => {
     setModifyDialogOpen(false);
     if (reload) onReload();
@@ -81,10 +90,10 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
           !isExpired(domain) ? (
             <Chip label="Reserved" color="primary" variant="outlined" />
           ) : (
-            <Chip label="Expired" color="warning" variant="outlined" />
+            <Chip label="Available" color="success" variant="outlined" />
           )
         ) : (
-          <Chip label="Free" color="success" variant="outlined" />
+          <Chip label="Available" color="success" variant="outlined" />
         )}
         {isExpired(domain) ? (
           <Chip
@@ -150,6 +159,26 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
           />
         </>
       )}
+      {!domain.isSubdomain && (
+        <>
+          <Divider textAlign="left" sx={{ my: 2 }}>
+            Subdomains
+          </Divider>
+
+          {domain.subdomains.map((subdomain) => (
+            <Typography variant="h6">{subdomain.domain}</Typography>
+          ))}
+          <Button
+            startIcon={<AddCircleIcon />}
+            disabled={!!!domain.owner}
+            onClick={() => setSubregisterDialogOpen(true)}
+          >
+            Create subdomain
+          </Button>
+        </>
+      )}
+
+      <Divider sx={{ my: 2 }} />
       <Stack direction="row">
         <Button
           disabled={!!domain.asset && !isExpired(domain)}
@@ -168,6 +197,12 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
         domain={domain}
         open={registerDialogOpen}
         onClose={handleRegisterDialogClose}
+        onLoading={onLoading}
+      />
+      <SubregisterDialog
+        domain={domain}
+        open={subregisterDialogOpen}
+        onClose={handleSubregisterDialogClose}
         onLoading={onLoading}
       />
       {mutableDomain && (

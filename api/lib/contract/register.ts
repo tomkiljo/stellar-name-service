@@ -13,7 +13,7 @@ import {
   Transaction,
   TransactionBuilder,
 } from "stellar-sdk";
-import { isValidDomain, lookupDomainNft, lookupDomainOwner } from "../lookup";
+import { isValidDomain, lookupDomain, lookupDomainOwner } from "../lookup";
 import { Environment } from "../server";
 
 const STROOP = "0.0000001";
@@ -33,7 +33,7 @@ const register = async (
     throw new Error(`Illegal domain ${domain}`);
   }
 
-  const existing = await lookupDomainNft(domain, env);
+  const existing = await lookupDomain(domain, env);
   const owner = existing && (await lookupDomainOwner(existing, env));
   const userIsOwner = userAccount === owner?.account_id;
 
@@ -78,7 +78,7 @@ const register = async (
       )
       .addOperation(
         Operation.setOptions({
-          source: domainKeypair.publicKey(),
+          source: domainAccount,
           // @ts-ignore Typescript typing do not allow multiple flags
           setFlags:
             AuthRequiredFlag |
@@ -168,7 +168,7 @@ const register = async (
   else {
     const ownerAccount = owner.account_id;
     const domainAccount = existing.asset.getIssuer();
-    const domainNFT = existing.asset;
+    const domainAsset = existing.asset;
 
     transaction = builder
       .addOperation(
@@ -182,14 +182,14 @@ const register = async (
         Operation.clawback({
           source: domainAccount,
           from: ownerAccount,
-          asset: domainNFT,
+          asset: domainAsset,
           amount: STROOP,
         })
       )
       .addOperation(
         Operation.changeTrust({
           source: userAccount,
-          asset: domainNFT,
+          asset: domainAsset,
           limit: STROOP,
         })
       )
@@ -197,7 +197,7 @@ const register = async (
         Operation.setTrustLineFlags({
           source: domainAccount,
           trustor: userAccount,
-          asset: domainNFT,
+          asset: domainAsset,
           flags: {
             authorized: true,
           },
@@ -207,7 +207,7 @@ const register = async (
         Operation.payment({
           source: domainAccount,
           destination: userAccount,
-          asset: domainNFT,
+          asset: domainAsset,
           amount: STROOP,
         })
       )
@@ -215,7 +215,7 @@ const register = async (
         Operation.setTrustLineFlags({
           source: domainAccount,
           trustor: userAccount,
-          asset: domainNFT,
+          asset: domainAsset,
           flags: {
             authorized: false,
           },

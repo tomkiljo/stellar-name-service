@@ -1,6 +1,7 @@
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { Keypair, Networks, Transaction } from "stellar-sdk";
 import register from "../lib/contract/register";
+import subregister from "../lib/contract/subregister";
 import { HttpResponse, HttpResponseBuilder } from "../lib/http";
 import { env } from "../lib/server";
 
@@ -12,6 +13,9 @@ const httpTrigger: AzureFunction = async (
   switch (context.bindingData.command) {
     case "register":
       xdr = await register(req.body, env);
+      break;
+    case "subregister":
+      xdr = await subregister(req.body, env);
       break;
     default:
       return HttpResponseBuilder.error(

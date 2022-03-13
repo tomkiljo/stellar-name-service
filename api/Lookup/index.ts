@@ -2,8 +2,10 @@ import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { HttpResponse, HttpResponseBuilder } from "../lib/http";
 import {
   isValidDomain,
-  lookupDomainNft,
+  isValidLabel,
+  lookupDomain,
   lookupDomainOwner,
+  lookupSubdomains,
 } from "../lib/lookup";
 import { env } from "../lib/server";
 
@@ -12,7 +14,12 @@ const httpTrigger: AzureFunction = async (
   req: HttpRequest
 ): Promise<HttpResponse> => {
   const domain = req.query.domain;
-  const isValid = isValidDomain(domain);
+  const parts = domain.split(".");
+
+  // some really iffy blast it through logic going on here
+  let isValid = parts.length < 2 || parts.length > 3;
+  isValid = isValid || isValidDomain(parts.slice(-2).join("."));
+  isValid = isValid || (parts.length === 3 && isValidLabel(parts[0]));
 
   // domain not valid, return
   if (!isValid) {
@@ -23,7 +30,7 @@ const httpTrigger: AzureFunction = async (
   }
 
   // domain valid but not registered
-  const domainNft = await lookupDomainNft(domain, env);
+  const domainNft = await lookupDomain(domain, env);
   if (!domainNft) {
     return HttpResponseBuilder.ok({
       domain,
@@ -33,11 +40,15 @@ const httpTrigger: AzureFunction = async (
 
   // domain valid and registered
   const owner = await lookupDomainOwner(domainNft, env);
+  const subdomains = await lookupSubdomains(domainNft, env);
+
   return HttpResponseBuilder.ok({
     domain,
     isValid,
+    isSubdomain: domainNft.isSubdomain,
     asset: domainNft.asset,
     expires: domainNft.expires,
+    subdomains,
     owner: {
       account: owner.account_id,
       data: {

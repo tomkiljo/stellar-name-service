@@ -7,11 +7,21 @@ const axiosInstance = axios.create({
 export interface DomainResult {
   domain: string;
   isValid: boolean;
+  isSubdomain: boolean;
   asset?: {
     code: string;
     issuer: string;
   };
   expires?: number;
+  subdomains: [
+    {
+      domain: string;
+      asset: {
+        code: string;
+        issuer: string;
+      };
+    }
+  ];
   owner?: {
     account: string;
     data: {
@@ -46,5 +56,19 @@ export const contractRegister = async (
 ): Promise<ContractResult> => {
   return axiosInstance
     .post<ContractResult>("/api/contract/register", { domain, userAccount })
+    .then((res) => res.data);
+};
+
+export const contractSubregister = async (
+  domain: string,
+  label: string,
+  userAccount: string
+): Promise<ContractResult> => {
+  return axiosInstance
+    .post<ContractResult>("/api/contract/subregister", {
+      domain,
+      label,
+      userAccount,
+    })
     .then((res) => res.data);
 };
