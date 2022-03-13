@@ -33,7 +33,7 @@ const subregister = async (
 ): Promise<string> => {
   const { domain, label, userAccount } = req;
 
-  if (!isValidDomain(domain)) {
+  if (!isValidDomain(domain, false)) {
     throw new Error(`Illegal domain ${domain}`);
   }
   if (!isValidLabel(label)) {

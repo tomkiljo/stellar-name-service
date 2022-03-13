@@ -29,7 +29,7 @@ const register = async (
 ): Promise<string> => {
   const { domain, userAccount } = req;
 
-  if (!isValidDomain(domain)) {
+  if (!isValidDomain(domain, false)) {
     throw new Error(`Illegal domain ${domain}`);
   }
 

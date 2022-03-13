@@ -2,9 +2,9 @@ import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { HttpResponse, HttpResponseBuilder } from "../lib/http";
 import {
   isValidDomain,
-  isValidLabel,
   lookupDomain,
   lookupDomainOwner,
+  lookupDomainTransfer,
   lookupSubdomains,
 } from "../lib/lookup";
 import { env } from "../lib/server";
@@ -17,9 +17,7 @@ const httpTrigger: AzureFunction = async (
   const parts = domain.split(".");
 
   // some really iffy blast it through logic going on here
-  let isValid = parts.length < 2 || parts.length > 3;
-  isValid = isValid || isValidDomain(parts.slice(-2).join("."));
-  isValid = isValid || (parts.length === 3 && isValidLabel(parts[0]));
+  const isValid = isValidDomain(domain, true);
 
   // domain not valid, return
   if (!isValid) {
@@ -40,16 +38,19 @@ const httpTrigger: AzureFunction = async (
 
   // domain valid and registered
   const owner = await lookupDomainOwner(domainNft, env);
+  const transfer = await lookupDomainTransfer(domainNft, env);
   const subdomains = await lookupSubdomains(domainNft, env);
 
   return HttpResponseBuilder.ok({
     domain,
     isValid,
+    isInTransfer: !!transfer,
     isSubdomain: domainNft.isSubdomain,
+    hasOwner: !!owner,
     asset: domainNft.asset,
     expires: domainNft.expires,
     subdomains,
-    owner: {
+    owner: owner && {
       account: owner.account_id,
       data: {
         account:
@@ -74,6 +75,7 @@ const httpTrigger: AzureFunction = async (
           ),
       },
     },
+    balanceId: transfer?.id,
   });
 };
 

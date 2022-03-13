@@ -8,7 +8,13 @@ import {
   Transaction,
   TransactionBuilder,
 } from "stellar-sdk";
-import { DomainResult, contractRegister, contractSubregister } from "./api";
+import {
+  DomainResult,
+  contractRegister,
+  contractSubregister,
+  contractTransferStart,
+  contractTransferEnd,
+} from "./api";
 
 const STELLAR_NETWORK = "TESTNET";
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
@@ -74,6 +80,52 @@ export const registerSubdomain = async (
     innerTransaction,
     Networks[STELLAR_NETWORK]
   );
+
+  transaction.sign(signer);
+
+  console.log(transaction.toXDR());
+  await server.submitTransaction(transaction);
+};
+
+export const transferDomainStart = async (
+  domain: DomainResult,
+  signer: Keypair,
+  targetAccount: string
+): Promise<void> => {
+  const contractResult = await contractTransferStart(
+    domain.domain,
+    signer.publicKey(),
+    targetAccount
+  );
+
+  const transaction = new Transaction(
+    contractResult.xdr,
+    Networks[STELLAR_NETWORK]
+  );
+
+  console.log(transaction.memo.value?.toString());
+
+  transaction.sign(signer);
+
+  console.log(transaction.toXDR());
+  await server.submitTransaction(transaction);
+};
+export const transferDomainEnd = async (
+  domain: DomainResult,
+  signer: Keypair
+): Promise<void> => {
+  const contractResult = await contractTransferEnd(
+    domain.domain,
+    signer.publicKey(),
+    domain.balanceId!
+  );
+
+  const transaction = new Transaction(
+    contractResult.xdr,
+    Networks[STELLAR_NETWORK]
+  );
+
+  console.log(transaction.memo.value?.toString());
 
   transaction.sign(signer);
 

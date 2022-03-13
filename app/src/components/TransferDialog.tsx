@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   Dialog,
   DialogActions,
@@ -9,50 +8,51 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { Box } from "@mui/system";
 import { FC, useEffect, useRef, useState } from "react";
 import { Keypair } from "stellar-sdk";
 import { DomainResult } from "../services/api";
-import { registerSubdomain } from "../services/stellar";
+import { transferDomainStart } from "../services/stellar";
 
-type SubregisterDialogProps = {
+type TransferDialogProps = {
   domain: DomainResult;
   open: boolean;
   onClose(reload: boolean): void;
   onLoading(loading: boolean): void;
 };
 
-const SubregisterDialog: FC<SubregisterDialogProps> = ({
+const TransferDialog: FC<TransferDialogProps> = ({
   domain,
   open,
   onClose,
   onLoading,
 }) => {
   const [inputError, setInputError] = useState<string | undefined>();
-  const [modifyError, setModifyError] = useState<string | undefined>();
+  const [registerError, setRegisterError] = useState<string | undefined>();
+  const targetAccountRef = useRef(null);
   const userSecretRef = useRef(null);
-  const labelRef = useRef(null);
 
   useEffect(() => {
     setInputError(undefined);
-    setModifyError(undefined);
-  }, [open, setInputError, setModifyError]);
+    setRegisterError(undefined);
+  }, [open, setInputError, setRegisterError]);
 
-  const handleRegister = () => {
+  const handleTransfer = () => {
+    // @ts-ignore
+    const targetAccount = targetAccountRef.current.value;
     // @ts-ignore
     const userSecret = userSecretRef.current.value;
-    // @ts-ignore
-    const label = labelRef.current.value;
     try {
       const userKeypair = Keypair.fromSecret(userSecret);
       onLoading(true);
-      registerSubdomain(domain, label, userKeypair)
+      transferDomainStart(domain, userKeypair, targetAccount)
         .then((res) => {
           onClose(true);
         })
         .catch((err) => {
           console.error(err);
           const reason = err?.response?.data?.message || "unknown reason";
-          setModifyError(`Subdomain register failed: ${reason}`);
+          setRegisterError(`Domain transfer failed: ${reason}`);
         })
         .finally(() => onLoading(false));
 
@@ -64,22 +64,23 @@ const SubregisterDialog: FC<SubregisterDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Create subdomain</DialogTitle>
+      <DialogTitle>Transfer domain</DialogTitle>
       <DialogContent>
-        {!!modifyError && (
+        {!!registerError && (
           <Box sx={{ p: 1, mb: 1, backgroundColor: "error.main" }}>
-            <Typography color="white">{modifyError}</Typography>
+            <Typography color="white">{registerError}</Typography>
           </Box>
         )}
         <DialogContentText>
-          Create subdomain for '{domain.domain}', please enter the label and
-          your secret key here.
+          To transfer domain '{domain.domain}', please enter target account and
+          your secret key here. Note that subdomains can only be transferred by
+          parent domain owner.
         </DialogContentText>
         <TextField
           autoFocus
           margin="dense"
-          inputRef={labelRef}
-          label="Subdomain label"
+          inputRef={targetAccountRef}
+          label="Target account"
           type="text"
           fullWidth
           variant="standard"
@@ -98,10 +99,10 @@ const SubregisterDialog: FC<SubregisterDialogProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={() => onClose(false)}>Cancel</Button>
-        <Button onClick={handleRegister}>Register</Button>
+        <Button onClick={handleTransfer}>Transfer</Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default SubregisterDialog;
+export default TransferDialog;

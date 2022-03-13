@@ -1,12 +1,37 @@
 import BigNumber from "bignumber.js";
-import { AccountResponse, Asset, Server, ServerApi } from "stellar-sdk";
+import {
+  AccountResponse,
+  Asset,
+  Horizon,
+  Server,
+  ServerApi,
+} from "stellar-sdk";
 import { Environment } from "./server";
 
 const DOMAIN_REGEX = /^(xn\-\-)?([a-z0-9\-]{1,61}|[a-z0-9\-]{1,30})\.stellar$/;
 const LABEL_REGEX = /^(xn\-\-)?([a-z0-9\-]{1,61}|[a-z0-9\-]{1,30})$/;
 
-export const isValidDomain = (domain: string): boolean => {
-  return !!domain && DOMAIN_REGEX.test(domain);
+export const isValidDomain = (
+  domain: string,
+  allowSubdomain: boolean = false
+): boolean => {
+  if (!!!domain || domain.length === 0) {
+    return false;
+  }
+
+  if (allowSubdomain) {
+    const labels = domain.split(".");
+    if (labels.length < 2 || labels.length > 3) {
+      return false;
+    }
+    if (labels.length === 3) {
+      return (
+        isValidLabel(labels[0]) && DOMAIN_REGEX.test(labels.slice(-2).join("."))
+      );
+    }
+  }
+
+  return DOMAIN_REGEX.test(domain);
 };
 
 export const isValidLabel = (label: string): boolean => {
@@ -15,6 +40,7 @@ export const isValidLabel = (label: string): boolean => {
 
 export interface DomainNft {
   domain: string;
+  parentDomainAccount?: string;
   isSubdomain: boolean;
   asset: Asset;
   expires?: number;
@@ -41,10 +67,12 @@ export const lookupDomain = async (
           new BigNumber(
             Buffer.from(account.data_attr["expires"], "base64").toString()
           ).toNumber();
+        const parentDomainAccount = account.inflation_destination;
         const isSubdomain = !!account.inflation_destination;
 
         return {
           domain,
+          parentDomainAccount,
           isSubdomain,
           asset: new Asset("Domain", account.account_id),
           expires,
@@ -56,7 +84,7 @@ export const lookupDomain = async (
 };
 
 export const lookupSubdomains = async (
-  domain: DomainNft,
+  domainNft: DomainNft,
   env: Environment
 ): Promise<DomainNft[]> => {
   const server = new Server(env.HORIZON_URL);
@@ -71,13 +99,16 @@ export const lookupSubdomains = async (
 
   while (accounts.records.length > 0) {
     for (const account of accounts.records) {
-      if (account.inflation_destination === domain.asset.issuer) {
+      if (account.inflation_destination === domainNft.asset.issuer) {
         const subdomain = Buffer.from(
           account.data_attr["domain"],
           "base64"
         ).toString();
+        const parentDomainAccount = account.inflation_destination;
+
         subdomains.push({
           domain: subdomain,
+          parentDomainAccount,
           isSubdomain: true,
           asset: new Asset("Domain", account.account_id),
         });
@@ -95,7 +126,42 @@ export const lookupDomainOwner = async (
 ): Promise<ServerApi.AccountRecord | undefined> => {
   const server = new Server(env.HORIZON_URL);
 
+  console.log(domainNft.asset);
+
   let accounts = await server.accounts().forAsset(domainNft.asset).call();
+
+  while (accounts.records.length > 0) {
+    for (const account of accounts.records) {
+      for (const balance of account.balances) {
+        if (balance.asset_type !== "credit_alphanum12") {
+          continue;
+        }
+        const balanceLineAsset = balance as Horizon.BalanceLineAsset;
+        if (
+          balanceLineAsset.asset_issuer === domainNft.asset.issuer &&
+          balanceLineAsset.asset_code === domainNft.asset.code &&
+          new BigNumber(balanceLineAsset.balance).isGreaterThan(0)
+        ) {
+          return account;
+        }
+      }
+    }
+    accounts = await accounts.next();
+  }
+};
+
+export const lookupSubdomainParentOwner = async (
+  subdomainNft: DomainNft,
+  env: Environment
+): Promise<ServerApi.AccountRecord | undefined> => {
+  if (!subdomainNft.isSubdomain) {
+    return undefined;
+  }
+
+  const server = new Server(env.HORIZON_URL);
+
+  const domainAsset = new Asset("Domain", subdomainNft.parentDomainAccount);
+  let accounts = await server.accounts().forAsset(domainAsset).call();
 
   while (accounts.records.length > 0) {
     for (const account of accounts.records) {
@@ -106,5 +172,22 @@ export const lookupDomainOwner = async (
       }
     }
     accounts = await accounts.next();
+  }
+};
+
+export const lookupDomainTransfer = async (
+  domainNft: DomainNft,
+  env: Environment
+): Promise<ServerApi.ClaimableBalanceRecord | undefined> => {
+  const server = new Server(env.HORIZON_URL);
+
+  const balances = await server
+    .claimableBalances()
+    .asset(domainNft.asset)
+    .limit(1)
+    .call();
+
+  if (balances.records.length > 0) {
+    return balances.records[0];
   }
 };

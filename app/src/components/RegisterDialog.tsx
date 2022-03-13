@@ -48,7 +48,8 @@ const RegisterDialog: FC<RegisterDialogProps> = ({
         })
         .catch((err) => {
           console.error(err);
-          setRegisterError("Domain registration failed");
+          const reason = err?.response?.data?.message || "unknown reason";
+          setRegisterError(`Domain registration failed: ${reason}`);
         })
         .finally(() => onLoading(false));
 

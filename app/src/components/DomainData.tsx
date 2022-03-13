@@ -19,6 +19,8 @@ import { DomainResult } from "../services/api";
 import ModifyDialog from "./ModifyDialog";
 import RegisterDialog from "./RegisterDialog";
 import SubregisterDialog from "./SubregisterDialog";
+import TransferDialog from "./TransferDialog";
+import AcceptDialog from "./AcceptDialog";
 
 export interface DomainDataEntry {
   name: string;
@@ -55,6 +57,8 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [subregisterDialogOpen, setSubregisterDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [mutableDomain, setMutableDomain] = useState<DomainResult>();
 
   useEffect(() => {
@@ -82,15 +86,29 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
     if (reload) onReload();
   };
 
+  const handleTransferDialogClose = (reload: boolean): void => {
+    setTransferDialogOpen(false);
+    if (reload) onReload();
+  };
+
+  const handleAcceptDialogClose = (reload: boolean): void => {
+    setAcceptDialogOpen(false);
+    if (reload) onReload();
+  };
+
   return (
     <Paper elevation={2} sx={{ padding: 1 }}>
       <Stack direction="row" spacing={1} alignItems="center">
         <Typography variant="h6">{domain.domain}</Typography>
         {!!domain.asset ? (
-          !isExpired(domain) ? (
-            <Chip label="Reserved" color="primary" variant="outlined" />
+          !domain.isInTransfer ? (
+            !isExpired(domain) ? (
+              <Chip label="Reserved" color="primary" variant="outlined" />
+            ) : (
+              <Chip label="Claimable" color="success" variant="outlined" />
+            )
           ) : (
-            <Chip label="Available" color="success" variant="outlined" />
+            <Chip label="Transferring" color="info" variant="outlined" />
           )
         ) : (
           <Chip label="Available" color="success" variant="outlined" />
@@ -111,6 +129,14 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
       </Stack>
       {mutableDomain?.owner && (
         <>
+          <TextField
+            disabled
+            fullWidth
+            margin="normal"
+            label="Issuer"
+            helperText="Domain issuer account"
+            value={mutableDomain.asset?.issuer || ""}
+          />
           <TextField
             disabled
             fullWidth
@@ -192,6 +218,19 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
         >
           Modify
         </Button>
+        <Divider orientation="vertical" flexItem />
+        <Button
+          disabled={isExpired(domain) || domain.isInTransfer}
+          onClick={() => setTransferDialogOpen(true)}
+        >
+          Transfer
+        </Button>
+        <Button
+          disabled={!domain.isInTransfer}
+          onClick={() => setAcceptDialogOpen(true)}
+        >
+          Accept
+        </Button>
       </Stack>
       <RegisterDialog
         domain={domain}
@@ -203,6 +242,18 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
         domain={domain}
         open={subregisterDialogOpen}
         onClose={handleSubregisterDialogClose}
+        onLoading={onLoading}
+      />
+      <TransferDialog
+        domain={domain}
+        open={transferDialogOpen}
+        onClose={handleTransferDialogClose}
+        onLoading={onLoading}
+      />
+      <AcceptDialog
+        domain={domain}
+        open={acceptDialogOpen}
+        onClose={handleAcceptDialogClose}
         onLoading={onLoading}
       />
       {mutableDomain && (
