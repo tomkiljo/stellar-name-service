@@ -185,7 +185,7 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
           />
         </>
       )}
-      {!domain.isSubdomain && (
+      {!domain?.isSubdomain && domain?.subdomains && (
         <>
           <Divider textAlign="left" sx={{ my: 2 }}>
             Subdomains
@@ -220,13 +220,13 @@ const DomainData: FC<DomainDataProps> = ({ domain, onReload, onLoading }) => {
         </Button>
         <Divider orientation="vertical" flexItem />
         <Button
-          disabled={isExpired(domain) || domain.isInTransfer}
+          disabled={!!!domain.owner || isExpired(domain) || domain.isInTransfer}
           onClick={() => setTransferDialogOpen(true)}
         >
           Transfer
         </Button>
         <Button
-          disabled={!domain.isInTransfer}
+          disabled={!!!domain.owner || !domain.isInTransfer}
           onClick={() => setAcceptDialogOpen(true)}
         >
           Accept
